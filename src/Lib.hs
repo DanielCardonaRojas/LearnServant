@@ -9,7 +9,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Lib
-    ( app1
+    ( 
     , main'
     ) where
 
