@@ -19,15 +19,23 @@ import Servant
 import Servant.API
 import Data.Aeson
 import GHC.Generics
+import Data.String.Conversions
+import Text.Read (readMaybe)
 
 import Data.Time.Calendar
 import Data.List (sortBy)
-
------------------------- API SEPC ---------------------------
+import Data.Complex
+------------------------ API SPEC ---------------------------
 type UserAPI = 
-               "users" :> QueryParam "sortby" SortBy :> Get '[JSON] [User]
-          :<|> "albert" :> Get '[JSON] User
-          :<|> "isaac" :> Get '[JSON] User
+           "users" :> QueryParam "sortby" SortBy :> Get '[JSON] [User]
+      :<|> "albert" :> Get '[JSON] User
+      :<|> "isaac" :> Get '[JSON] User
+
+type MathAPI = 
+          "sum" :> Capture "x" Int :> Capture "y" Int :> Get '[JSON] Int
+     :<|> "conjugate" :> Capture "x" (Complex Int)  :> Get '[JSON] String
+
+type MyAPI = UserAPI :<|> MathAPI
 
 data User = User
     { name :: String
@@ -38,8 +46,6 @@ data User = User
 
 instance ToJSON User
 
--- Derivin Generic gives a FromText instance ? FromHttpApi specifies how to decode a query param into a 
--- value a given type with: parseQueryParam :: Text -> Either Text a
 data SortBy = Age | Name deriving (Generic, Show,Eq)
 
 instance FromHttpApiData SortBy where
@@ -47,6 +53,9 @@ instance FromHttpApiData SortBy where
     parseQueryParam "name" = Right Name
     parseQueryParam _ = Left "Not valid query param"
 
+instance (Num a,Read a) => FromHttpApiData (Complex a) where
+    --parseUrlPiece :: Text -> Either Text a
+    parseUrlPiece txt = maybe (Left "Cant parse complex num") (Right) (readMaybe $ cs txt)
 ---------------------- HANDLERS -------------------
 users :: [User]
 users =
@@ -57,8 +66,6 @@ users =
 
 albert = users !! 0
 isaac = users !! 1
-
-compareWith f x y = compare (f x) (f y) 
 
 sortedUsers Age = sortBy (compareWith age)
 sortedUsers Name = sortBy (compareWith name)
@@ -73,17 +80,33 @@ server1 =
      :<|> return isaac
      :<|> return albert
 
-userAPI :: Proxy UserAPI
-userAPI = Proxy
+server2 :: Server MathAPI
+server2 = sum
+      :<|> showConjugate
+      where
+       sum = return <.. (+)
+
+       showConjugate :: Monad m => Complex Int -> m String
+       showConjugate = return . show . conjugate
+
+server :: Server MyAPI
+server = server1 :<|> server2
+
+myAPI :: Proxy MyAPI
+myAPI = Proxy
 
 ---------------------------------- SERVER --------------------------------
 {- 'serve' comes from servant and hands you a WAI Application,
 which you can think of as an "abstract" web application,
 not yet a webserver. -}
 
-app1 :: Application
-app1 = serve userAPI server1
+app :: Application
+app = serve myAPI server
 
 main' = do 
    putStrLn "Server running in http://localhost:8081"
-   run 8081 app1
+   run 8081 app
+
+----------------------------- UTILS -----------------------------
+(<..) = (.) . (.)
+compareWith f x y = compare (f x) (f y) 
