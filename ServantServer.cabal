@@ -32,6 +32,8 @@ library
                      , aeson
                      , time
                      , string-conversions
+                     , servant-lucid
+                     , lucid
   default-language:    Haskell2010
 
 executable ServantServer-exe

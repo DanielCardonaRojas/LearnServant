@@ -9,7 +9,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Lib
-    ( 
+    ( app
     , main'
     ) where
 
@@ -21,13 +21,14 @@ import Data.Aeson
 import GHC.Generics
 import Data.String.Conversions
 import Text.Read (readMaybe)
-
+import Servant.HTML.Lucid
+import Lucid
 import Data.Time.Calendar
 import Data.List (sortBy)
 import Data.Complex
 ------------------------ API SPEC ---------------------------
 type UserAPI = 
-           "users" :> QueryParam "sortby" SortBy :> Get '[JSON] [User]
+           "users" :> QueryParam "sortby" SortBy :> Get '[JSON, HTML] [User]
       :<|> "albert" :> Get '[JSON] User
       :<|> "isaac" :> Get '[JSON] User
 
@@ -45,6 +46,24 @@ data User = User
     } deriving (Eq, Show, Generic)
 
 instance ToJSON User
+
+instance ToHtml User where
+    toHtml u = tr_ $ do
+                td_ $ toHtml (name u)
+                td_ $ toHtml (show $ age u)
+                td_ $ toHtml (email u)
+
+    toHtmlRaw = toHtml
+
+instance ToHtml [User] where
+    toHtml u = table_ $ do
+        tr_ $ do
+            th_ $ toHtml ("Name"::String)
+            th_ $ toHtml ("Age"::String)
+            th_ $ toHtml ("Email"::String)
+        foldMap toHtml u
+
+    toHtmlRaw = toHtml
 
 data SortBy = Age | Name deriving (Generic, Show,Eq)
 
