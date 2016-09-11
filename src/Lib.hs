@@ -42,6 +42,8 @@ data User = User
     { name :: String
     , age :: Int
     , email :: String
+    , img :: String
+    , job :: String
     , registration_date :: Day
     } deriving (Eq, Show, Generic)
 
@@ -52,6 +54,8 @@ instance ToHtml User where
                 td_ $ toHtml (name u)
                 td_ $ toHtml (show $ age u)
                 td_ $ toHtml (email u)
+                td_ $ toHtml (job u)
+                td_ $ toHtml (img u)
 
     toHtmlRaw = toHtml
 
@@ -61,6 +65,8 @@ instance ToHtml [User] where
             th_ $ toHtml ("Name"::String)
             th_ $ toHtml ("Age"::String)
             th_ $ toHtml ("Email"::String)
+            th_ $ toHtml ("Job"::String)
+            th_ $ toHtml ("Image Source"::String)
         foldMap toHtml u
 
     toHtmlRaw = toHtml
@@ -78,9 +84,9 @@ instance (Num a,Read a) => FromHttpApiData (Complex a) where
 ---------------------- HANDLERS -------------------
 users :: [User]
 users =
-  [ User "Isaac Newton"    372 "isaac@newton.co.uk" (fromGregorian 1683  3 1)
-  , User "Albert Einstein" 136 "ae@mc2.org" (fromGregorian 1905 12 1)
-  , User "Haskell Curry" 200 "hs@curry.org" (fromGregorian 1900 9 12)
+  [ User "Isaac Newton"    372 "isaac@newton.co.uk" "http://placehold.it/250x250" "Cientist" (fromGregorian 1683  3 1)
+  , User "Albert Einstein" 136 "ae@mc2.org" "http://placehold.it/250x250" "Cientist" (fromGregorian 1905 12 1)
+  , User "Haskell Curry" 200 "hs@curry.org" "http://placehold.it/250x250" "Logician" (fromGregorian 1900 9 12)
   ]
 
 albert = users !! 0
@@ -123,8 +129,12 @@ app :: Application
 app = serve myAPI server
 
 main' = do 
-   putStrLn "Server running in http://localhost:8081"
-   run 8081 app
+    let hostIP = "0.0.0.0"
+    let port = 5000
+    putStrLn $ "Server running in " ++ (show hostIP) ++ " port " ++ (show port)
+    let settings = setPort port $ setHost hostIP defaultSettings
+    runSettings settings app
+
 
 ----------------------------- UTILS -----------------------------
 (<..) = (.) . (.)
