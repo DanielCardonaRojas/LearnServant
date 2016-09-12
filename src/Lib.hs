@@ -9,8 +9,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-#LANGUAGE OverloadedLists#-}
 
-
-
 module Lib
     ( app
     , main'
@@ -36,7 +34,7 @@ import Data.Text(Text(..))
 ------------------------ API SPEC ---------------------------
 type UserAPI = 
            "users" :> QueryParam "sortby" SortBy :> Get '[JSON] [User]
-      :<|> "members" :> Get '[JSON] Members
+      :<|> "members" :> Get '[JSON] (Headers '[Header "Access-Control-Allow-Origin" String] Members)
       :<|> "albert" :> Get '[JSON] User
       :<|> "isaac" :> Get '[JSON] User
 
@@ -49,11 +47,13 @@ type MyAPI = UserAPI :<|> MathAPI
 data User = User
     { name :: String
     , age :: Int
+    , img :: String
     } deriving (Eq, Show, Generic)
 
-instance ToJSON User 
-
 newtype Members = Members [User]
+
+--------------------- INSTANCES ---------------------
+instance ToJSON User 
 
 instance ToJSON Members where 
    toJSON (Members us) = Object [("members", toJSON us)] 
@@ -84,16 +84,17 @@ instance FromHttpApiData SortBy where
 instance (Num a,Read a) => FromHttpApiData (Complex a) where
     --parseUrlPiece :: Text -> Either Text a
     parseUrlPiece txt = maybe (Left "Cant parse complex num") (Right) (readMaybe $ cs txt)
----------------------- HANDLERS -------------------
+
+---------------------- ENDPOINT HANDLERS -------------------
 users :: [User]
 users =
-  [ User "Isaac Newton"    372 
-  , User "Albert Einstein" 136
-  , User "Haskell Curry" 200 
+  [ User "Isaac Newton"    372 "http://placehold.it/250x250"
+  , User "Albert Einstein" 136 "http://placehold.it/250x250" 
+  , User "Haskell Curry" 200 "http://placehold.it/250x250"
   ]
 
-members :: Monad m => m Members
-members = return $ Members users
+members :: Monad m => m (Headers '[Header "Access-Control-Allow-Origin" String] Members)
+members = return $ addHeader "*" (Members users)
 
 albert = users !! 0
 isaac = users !! 1
@@ -145,6 +146,6 @@ main' = do
     runSettings settings app
 
 
------------------------------ UTILS -----------------------------
+----------------------------- UTILITIES -----------------------------
 (<..) = (.) . (.)
 compareWith f x y = compare (f x) (f y) 
