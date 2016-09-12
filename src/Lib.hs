@@ -7,6 +7,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-#LANGUAGE OverloadedLists#-}
+
+
 
 module Lib
     ( app
@@ -26,9 +29,14 @@ import Lucid
 import Data.Time.Calendar
 import Data.List (sortBy)
 import Data.Complex
+
+import Data.HashMap.Strict
+import Data.Text(Text(..))
+
 ------------------------ API SPEC ---------------------------
 type UserAPI = 
-           "users" :> QueryParam "sortby" SortBy :> Get '[JSON, HTML] [User]
+           "users" :> QueryParam "sortby" SortBy :> Get '[JSON] [User]
+      :<|> "members" :> Get '[JSON] Members
       :<|> "albert" :> Get '[JSON] User
       :<|> "isaac" :> Get '[JSON] User
 
@@ -41,21 +49,19 @@ type MyAPI = UserAPI :<|> MathAPI
 data User = User
     { name :: String
     , age :: Int
-    , email :: String
-    , img :: String
-    , job :: String
-    , registration_date :: Day
     } deriving (Eq, Show, Generic)
 
-instance ToJSON User
+instance ToJSON User 
+
+newtype Members = Members [User]
+
+instance ToJSON Members where 
+   toJSON (Members us) = Object [("members", toJSON us)] 
 
 instance ToHtml User where
     toHtml u = tr_ $ do
                 td_ $ toHtml (name u)
                 td_ $ toHtml (show $ age u)
-                td_ $ toHtml (email u)
-                td_ $ toHtml (job u)
-                td_ $ toHtml (img u)
 
     toHtmlRaw = toHtml
 
@@ -64,9 +70,6 @@ instance ToHtml [User] where
         tr_ $ do
             th_ $ toHtml ("Name"::String)
             th_ $ toHtml ("Age"::String)
-            th_ $ toHtml ("Email"::String)
-            th_ $ toHtml ("Job"::String)
-            th_ $ toHtml ("Image Source"::String)
         foldMap toHtml u
 
     toHtmlRaw = toHtml
@@ -84,10 +87,13 @@ instance (Num a,Read a) => FromHttpApiData (Complex a) where
 ---------------------- HANDLERS -------------------
 users :: [User]
 users =
-  [ User "Isaac Newton"    372 "isaac@newton.co.uk" "http://placehold.it/250x250" "Cientist" (fromGregorian 1683  3 1)
-  , User "Albert Einstein" 136 "ae@mc2.org" "http://placehold.it/250x250" "Cientist" (fromGregorian 1905 12 1)
-  , User "Haskell Curry" 200 "hs@curry.org" "http://placehold.it/250x250" "Logician" (fromGregorian 1900 9 12)
+  [ User "Isaac Newton"    372 
+  , User "Albert Einstein" 136
+  , User "Haskell Curry" 200 
   ]
+
+members :: Monad m => m Members
+members = return $ Members users
 
 albert = users !! 0
 isaac = users !! 1
@@ -99,9 +105,12 @@ sortedUsers Name = sortBy (compareWith name)
 sortUsers :: Monad m =>  Maybe SortBy -> m [User]
 sortUsers = return . maybe users (flip sortedUsers users)
 
+
+
 server1 :: Server UserAPI
 server1 = 
           sortUsers
+     :<|> members
      :<|> return isaac
      :<|> return albert
 
